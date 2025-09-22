@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTS & Voice Cloning - Síntese Neural de Fala</title>
+    <style>
+        :root {
+            --primary-bg: #13103b;
+            --secondary-bg: #1a1650;
+            --accent-color: #d4fc04;
+            --accent-hover: #c4ec00;
+            --text-primary: #ffffff;
+            --text-secondary: #c0c0c0;
+            --text-muted: #a0a0a0;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 50%, var(--primary-bg) 100%);
+            background-size: 400% 400%;
+            animation: backgroundShift 10s ease-in-out infinite;
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+        }
+
+        .tabs {
+            display: flex;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: 15px 15px 0 0;
+            overflow: hidden;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            color: var(--primary-bg);
+            background: var(--accent-color);
+            border-bottom-color: var(--accent-hover);
+        }
+
+        .tab-button:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .tab-content {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            padding: 30px;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 20px rgba(212, 252, 4, 0.2);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+            color: var(--primary-bg);
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 252, 4, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--text-muted), #6c757d);
+            color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #c82333);
+            color: var(--text-primary);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            display: none;
+        }
+
+        .alert.success {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .alert.error {
+            background: rgba(220, 53, 69, 0.1);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+
+        .alert.info {
+            background: rgba(23, 162, 184, 0.1);
+            border-color: var(--info-color);
+            color: var(--info-color);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid var(--accent-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .audio-player {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .audio-player audio {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px dashed var(--card-border);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-label:hover {
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .file-upload-label i {
+            font-size: 2rem;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .status-indicator {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-indicator.online {
+            background: rgba(40, 167, 69, 0.2);
+            color: var(--success-color);
+        }
+
+        .status-indicator.offline {
+            background: rgba(220, 53, 69, 0.2);
+            color: var(--danger-color);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1.1rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-microphone"></i> TTS & Voice Cloning</h1>
+            <p>Síntese Neural de Fala em Português Brasileiro</p>
+            <div class="status-indicator online" id="status">
+                <i class="fas fa-circle"></i> Sistema Online
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('tts')">
+                <i class="fas fa-volume-up"></i> Texto para Voz
+            </button>
+            <button class="tab-button" onclick="showTab('voices')">
+                <i class="fas fa-list"></i> Vozes Disponíveis
+            </button>
+            <button class="tab-button" onclick="showTab('settings')">
+                <i class="fas fa-cog"></i> Status do Sistema
+            </button>
+        </div>
+
+        <!-- Tab: Texto para Voz -->
+        <div id="tts-tab" class="tab-content active">
+            <h2><i class="fas fa-microphone-alt"></i> Síntese de Texto</h2>
+
+            <div class="alert" id="tts-alert"></div>
+
+            <form id="tts-form">
+                <div class="form-group">
+                    <label for="tts-text">Texto para Sintetizar</label>
+                    <textarea id="tts-text" placeholder="Digite o texto que deseja converter em áudio..." required maxlength="5000"></textarea>
+                    <small style="color: var(--text-muted);">Máximo: 5000 caracteres</small>
+                </div>
+
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="tts-language">Idioma</label>
+                        <select id="tts-language">
+                            <option value="pt">Português (Brasil)</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tts-format">Formato de Áudio</label>
+                        <select id="tts-format">
+                            <option value="wav">WAV (Alta Qualidade)</option>
+                            <option value="mp3">MP3 (Compacto)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="tts-submit">
+                    <i class="fas fa-play"></i> Gerar Áudio
+                </button>
+            </form>
+
+            <div class="loading" id="tts-loading">
+                <div class="spinner"></div>
+                <p>Sintetizando áudio...</p>
+            </div>
+
+            <div class="audio-player" id="tts-result" style="display: none;">
+                <h4>Áudio Gerado</h4>
+                <audio controls id="tts-audio"></audio>
+                <br><br>
+                <a href="#" id="tts-download" class="btn btn-secondary" download>
+                    <i class="fas fa-download"></i> Baixar Áudio
+                </a>
+            </div>
+        </div>
+
+        <!-- Tab: Vozes Disponíveis -->
+        <div id="voices-tab" class="tab-content">
+            <h2><i class="fas fa-users"></i> Vozes Disponíveis</h2>
+
+            <div class="alert" id="voices-alert"></div>
+
+            <div id="voices-list">
+                <div class="loading" id="voices-loading">
+                    <div class="spinner"></div>
+                    <p>Carregando vozes disponíveis...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Status do Sistema -->
+        <div id="settings-tab" class="tab-content">
+            <h2><i class="fas fa-cog"></i> Status do Sistema</h2>
+
+            <div class="alert" id="settings-alert"></div>
+
+            <div id="system-status">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Verificando sistema...</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <h3>Informações da API</h3>
+                <div id="api-info" style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px;">
+                    <p><strong>Endpoint Base:</strong> <span id="api-base">Carregando...</span></p>
+                    <p><strong>Versão:</strong> <span id="api-version">Carregando...</span></p>
+                    <p><strong>Modelos Disponíveis:</strong> <span id="api-models">Carregando...</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado global da aplicação
+        const app = {
+            baseUrl: window.location.origin,
+            voices: [],
+            currentAudio: null
+        };
+
+        // Utility functions
+        function showAlert(tabId, message, type = 'info') {
+            const alert = document.getElementById(`${tabId}-alert`);
+            alert.textContent = message;
+            alert.className = `alert ${type}`;
+            alert.style.display = 'block';
+
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        function showLoading(tabId, show = true) {
+            const loading = document.getElementById(`${tabId}-loading`);
+            if (loading) {
+                loading.style.display = show ? 'block' : 'none';
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load tab-specific data
+            if (tabName === 'voices') {
+                loadAvailableVoices();
+            } else if (tabName === 'settings') {
+                loadSystemStatus();
+            }
+        }
+
+        // TTS Functions
+        document.getElementById('tts-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const text = document.getElementById('tts-text').value;
+            const language = document.getElementById('tts-language').value;
+            const format = document.getElementById('tts-format').value;
+
+            if (!text.trim()) {
+                showAlert('tts', 'Por favor, digite um texto para sintetizar.', 'error');
+                return;
+            }
+
+            try {
+                showLoading('tts', true);
+                document.getElementById('tts-submit').disabled = true;
+
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('language', language);
+                formData.append('format', format);
+
+                const response = await fetch(`${app.baseUrl}/v1/tts`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const audioUrl = URL.createObjectURL(blob);
+
+                    const audioPlayer = document.getElementById('tts-audio');
+                    const downloadLink = document.getElementById('tts-download');
+
+                    audioPlayer.src = audioUrl;
+                    downloadLink.href = audioUrl;
+                    downloadLink.download = `tts_${Date.now()}.${format}`;
+
+                    document.getElementById('tts-result').style.display = 'block';
+                    showAlert('tts', 'Áudio gerado com sucesso!', 'success');
+                } else {
+                    const error = await response.json();
+                    showAlert('tts', error.detail || 'Erro ao gerar áudio.', 'error');
+                }
+            } catch (error) {
+                showAlert('tts', 'Erro de conexão. Verifique se o servidor está executando.', 'error');
+            } finally {
+                showLoading('tts', false);
+                document.getElementById('tts-submit').disabled = false;
+            }
+        });
+
+        // Available Voices Functions
+        async function loadAvailableVoices() {
+            try {
+                showLoading('voices', true);
+
+                const response = await fetch(`${app.baseUrl}/v1/voices/available`);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderAvailableVoices(data.voices || []);
+                } else {
+                    showAlert('voices', 'Erro ao carregar vozes disponíveis.', 'error');
+                }
+            } catch (error) {
+                showAlert('voices', 'Erro de conexão. Verifique se o servidor está executando.', 'error');
+            } finally {
+                showLoading('voices', false);
+            }
+        }
+
+        function renderAvailableVoices(voices) {
+            const container = document.getElementById('voices-list');
+
+            if (voices.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fas fa-microphone-slash" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                        <p>Nenhuma voz disponível encontrada.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = voices.map(voice => `
+                <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); border-radius: 10px; padding: 20px; margin: 15px 0;">
+                    <h4 style="color: var(--accent-color); margin-bottom: 10px;">
+                        <i class="fas fa-microphone"></i> ${voice.name}
+                    </h4>
+                    <p><strong>Engine:</strong> ${voice.engine}</p>
+                    <p><strong>Idioma:</strong> ${voice.lang}</p>
+                    <p><strong>ID:</strong> ${voice.id}</p>
+                </div>
+            `).join('');
+        }
+
+        // System Status Functions
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${app.baseUrl}/health`);
+                const status = await response.json();
+
+                document.getElementById('system-status').innerHTML = `
+                    <div style="padding: 20px; background: rgba(40, 167, 69, 0.1); border-radius: 10px;">
+                        <h4 style="color: var(--success-color); margin-bottom: 15px;">
+                            <i class="fas fa-check-circle"></i> Sistema Operacional
+                        </h4>
+                        <p><strong>Status:</strong> ${status.status}</p>
+                        <p><strong>Versão:</strong> ${status.version}</p>
+                        <p><strong>Modelo TTS:</strong> ${status.tts_model_loaded ? 'Carregado' : 'Não carregado'}</p>
+                        <p><strong>Device:</strong> ${status.device}</p>
+                        <p><strong>Uptime:</strong> ${status.uptime || 'N/A'}</p>
+                    </div>
+                `;
+
+                document.getElementById('api-base').textContent = app.baseUrl;
+                document.getElementById('api-version').textContent = status.version;
+                document.getElementById('api-models').textContent = status.tts_model_id || 'Real TTS Synthesizer';
+
+                // Update status indicator
+                const statusEl = document.getElementById('status');
+                statusEl.className = 'status-indicator online';
+                statusEl.innerHTML = '<i class="fas fa-circle"></i> Sistema Online';
+
+            } catch (error) {
+                document.getElementById('system-status').innerHTML = `
+                    <div style="padding: 20px; background: rgba(220, 53, 69, 0.1); border-radius: 10px;">
+                        <h4 style="color: var(--danger-color); margin-bottom: 15px;">
+                            <i class="fas fa-exclamation-triangle"></i> Sistema Offline
+                        </h4>
+                        <p>Não foi possível conectar ao servidor. Verifique se o serviço está executando.</p>
+                    </div>
+                `;
+
+                const statusEl = document.getElementById('status');
+                statusEl.className = 'status-indicator offline';
+                statusEl.innerHTML = '<i class="fas fa-circle"></i> Sistema Offline';
+
+                showAlert('settings', 'Erro ao carregar status do sistema.', 'error');
+            }
+        }
+
+        // Character counter for text areas
+        document.getElementById('tts-text').addEventListener('input', function(e) {
+            const maxLength = parseInt(this.getAttribute('maxlength'));
+            const currentLength = this.value.length;
+            const remaining = maxLength - currentLength;
+
+            let counter = this.parentNode.querySelector('.char-counter');
+            if (!counter) {
+                counter = document.createElement('small');
+                counter.className = 'char-counter';
+                counter.style.color = 'var(--text-muted)';
+                counter.style.float = 'right';
+                this.parentNode.appendChild(counter);
+            }
+
+            counter.textContent = `${remaining} caracteres restantes`;
+            counter.style.color = remaining < 100 ? 'var(--warning-color)' : 'var(--text-muted)';
+        });
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('TTS Interface Loaded');
+
+            // Load initial data
+            await loadSystemStatus();
+
+            // Auto-check system status every 30 seconds
+            setInterval(async () => {
+                try {
+                    const response = await fetch(`${app.baseUrl}/health`);
+                    const statusEl = document.getElementById('status');
+
+                    if (response.ok) {
+                        statusEl.className = 'status-indicator online';
+                        statusEl.innerHTML = '<i class="fas fa-circle"></i> Sistema Online';
+                    } else {
+                        statusEl.className = 'status-indicator offline';
+                        statusEl.innerHTML = '<i class="fas fa-circle"></i> Sistema Offline';
+                    }
+                } catch (error) {
+                    const statusEl = document.getElementById('status');
+                    statusEl.className = 'status-indicator offline';
+                    statusEl.innerHTML = '<i class="fas fa-circle"></i> Sistema Offline';
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+</html>
